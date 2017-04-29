@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MFCOpenGL", "MFCOpenGL\MFCOpenGL.vcxproj", "{7AC4F18B-EB68-42BE-A082-7CCEB86FF033}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7AC4F18B-EB68-42BE-A082-7CCEB86FF033}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7AC4F18B-EB68-42BE-A082-7CCEB86FF033}.Debug|Win32.Build.0 = Debug|Win32
+		{7AC4F18B-EB68-42BE-A082-7CCEB86FF033}.Release|Win32.ActiveCfg = Release|Win32
+		{7AC4F18B-EB68-42BE-A082-7CCEB86FF033}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
