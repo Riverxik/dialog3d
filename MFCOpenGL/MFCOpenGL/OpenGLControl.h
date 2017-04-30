@@ -3,6 +3,31 @@
 
 #include <gl/gl.h>
 #include <gl/glu.h>
+#include <glaux.h>
+
+#define NUMBER_OF_VERTEX 8
+#define SELECTING_OBJECT_COUNT 8
+#define SELECTING_BUFFER 4 * SELECTING_OBJECT_COUNT
+
+struct myvector
+{
+	float x;
+	float y;
+	float z;
+	myvector(){x=y=z=0;};
+
+	bool operator!=(const myvector &vec) const
+	{return !((*this).x == vec.x && (*this).y == vec.y && (*this).z == vec.z);}
+	bool operator!=(const int _num) const
+	{return !((*this).x == _num && (*this).y == _num && (*this).z == _num);}
+	void Set(float _x, float _y, float _z){x=_x; y=_y; z=_z;};
+};
+
+struct myobject
+{
+	myvector center; //Центральная точка
+	myobject(){center.Set(0,0,0);};
+};
 
 class COpenGLControl : public CWnd
 {
@@ -20,6 +45,7 @@ class COpenGLControl : public CWnd
 		float	 m_fRotX;
 		float	 m_fRotY;
 		bool	 m_bIsMaximized;
+		bool	 m_bRayIsVisible;
 
 		// Draw information
 		float	 m_start_x;		// Ближайшая точка по оси X
@@ -35,6 +61,12 @@ class COpenGLControl : public CWnd
 		GLfloat cubeColorArray[8][3];	// Массив цветов вершин
 		GLubyte cubeIndexArray[6][4];	// Массив граней пара-педа
 
+		GLfloat axisVertex[4][3];		// Массив точек оси
+		GLfloat axisColor[4][3];		// Массив цветов оси
+		GLubyte axisIndex[3][2];		// Массив точек линий
+
+		myvector p1, p2;				// Луч определяющий пересечение с объектами
+		myobject obj[SELECTING_OBJECT_COUNT];// 8 сфер для выбора точки начала координат
 	private:
 		/*******************/
 		/* Private Members */
@@ -58,7 +90,8 @@ class COpenGLControl : public CWnd
 		void oglDrawScene(void);				// Отрисовка
 		void oglFillIn(void);					// Вписывание
 		void oglRecalculate(void);				// Пересчитывание координат (для изменения)
-		int RetrieveObjectID(int x, int y);		// Вычисление в какой объект попали (переделать через луч)
+		int RetrieveObjectID(int x, int y, 
+				myvector &p1, myvector &p2);	// Вычисление в какой объект попали (переделать через луч)
 
 		// Added message classes:
 		afx_msg void OnPaint();

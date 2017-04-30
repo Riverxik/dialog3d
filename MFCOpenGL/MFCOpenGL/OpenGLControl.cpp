@@ -1,18 +1,5 @@
 #include "stdafx.h"
 #include "OpenGLControl.h"
-//#include "OpenGLDialogDlg.h"
-#define NUMBER_OF_VERTEX 8
-#define OBJECT_CUBE 100
-#define OBJECT_SPHERE_1 101
-#define OBJECT_SPHERE_2 102
-#define OBJECT_SPHERE_3 103
-#define OBJECT_SPHERE_4 104
-#define OBJECT_SPHERE_5 105
-#define OBJECT_SPHERE_6 106
-#define OBJECT_SPHERE_7 107
-#define OBJECT_SPHERE_8 108
-#define SELECTING_OBJECT_COUNT 8
-#define SELECTING_BUFFER 4 * SELECTING_OBJECT_COUNT
 
 COpenGLControl::COpenGLControl(void)
 {
@@ -22,6 +9,7 @@ COpenGLControl::COpenGLControl(void)
 	m_fRotX = 0.0f;		// Rotation on model in camera view
 	m_fRotY	= 0.0f;		// Rotation on model in camera view
 	m_bIsMaximized = false;
+	m_bRayIsVisible = true;
 
 	m_start_x = 0.0f; // x coord of start point
 	m_start_y = 0.0f; // y coord of start point
@@ -30,15 +18,96 @@ COpenGLControl::COpenGLControl(void)
 	m_width = 1.0f;   // y_max coord of start point
 	m_height = 1.0f;  // z_max coord of start point
 	m_scale = 1.0f;   // scale
-
+	
+	// Сферы
 	for(unsigned i=0; i<SELECTING_OBJECT_COUNT; i++)
-	m_Obj[i] = gluNewQuadric(); //Инициализация
+		obj[i]; // инициализация 8 сфер в 0,0,0
+	
+	//Цвет
+	for(unsigned i=0; i<SELECTING_OBJECT_COUNT; i++)
+	{
+		cubeColorArray[i][0] = 1.0f;
+		cubeColorArray[i][1] = 1.0f;
+		cubeColorArray[i][2] = 1.0f;
+	}
+	//Грани
+	cubeIndexArray[0][0] = 0;
+	cubeIndexArray[0][1] = 3;
+	cubeIndexArray[0][2] = 2;
+	cubeIndexArray[0][3] = 1;
+ 
+	cubeIndexArray[1][0] = 0;
+	cubeIndexArray[1][1] = 1;
+	cubeIndexArray[1][2] = 5;
+	cubeIndexArray[1][3] = 4;
+ 
+	cubeIndexArray[2][0] = 7;
+	cubeIndexArray[2][1] = 4;
+	cubeIndexArray[2][2] = 5;
+	cubeIndexArray[2][3] = 6;
+ 
+	cubeIndexArray[3][0] = 3;
+	cubeIndexArray[3][1] = 7;
+	cubeIndexArray[3][2] = 6;
+	cubeIndexArray[3][3] = 2;
+ 
+	cubeIndexArray[4][0] = 1;
+	cubeIndexArray[4][1] = 2;
+	cubeIndexArray[4][2] = 6;
+	cubeIndexArray[4][3] = 5;
+ 
+	cubeIndexArray[5][0] = 0;
+	cubeIndexArray[5][1] = 4;
+	cubeIndexArray[5][2] = 7;
+	cubeIndexArray[5][3] = 3;
+	// Оси
+	/*
+		 1
+		 |	 
+		0|___2
+		/
+	   /3
+	*/
+	// Точки
+	// axisVertex[Номер точки][Номер координаты]
+	axisVertex[0][0] = 0;
+	axisVertex[0][1] = 0;
+	axisVertex[0][2] = 0;
+	axisVertex[1][0] = 0;
+	axisVertex[1][1] = 1;
+	axisVertex[1][2] = 0;
+	axisVertex[2][0] = 1;
+	axisVertex[2][1] = 0;
+	axisVertex[2][2] = 0;
+	axisVertex[3][0] = 0;
+	axisVertex[3][1] = 0;
+	axisVertex[3][2] = 1;
+	// Цвета
+	// axisColor[Номер точки][Номер координаты] = 0;
+	axisColor[0][0] = 1;
+	axisColor[0][1] = 1;
+	axisColor[0][2] = 1;
+	axisColor[1][0] = 0;
+	axisColor[1][1] = 1;
+	axisColor[1][2] = 0;
+	axisColor[2][0] = 1;
+	axisColor[2][1] = 0;
+	axisColor[2][2] = 0;
+	axisColor[3][0] = 0;
+	axisColor[3][1] = 0;
+	axisColor[3][2] = 1;
+	// Линии
+	// axisIndex[Номер линии][Номер точки]
+	axisIndex[0][0] = 0;
+	axisIndex[0][1] = 1;
+	axisIndex[1][0] = 0;
+	axisIndex[1][1] = 2;
+	axisIndex[2][0] = 0;
+	axisIndex[2][1] = 3;
 }
 
 COpenGLControl::~COpenGLControl(void)
 {
-	for(unsigned i=0; i<SELECTING_OBJECT_COUNT; i++)
-	gluDeleteQuadric(m_Obj[i]);
 }
 
 BEGIN_MESSAGE_MAP(COpenGLControl, CWnd)
@@ -216,6 +285,13 @@ void COpenGLControl::OnMouseMove(UINT nFlags, CPoint point)
 
 void COpenGLControl::OnLButtonUp(UINT nFlags, CPoint point)
 {
+	//Получаем координаты луча
+	if(nFlags && MK_CONTROL)
+	{
+		RetrieveObjectID(point.x, point.y, p1, p2); // Задали луч
+		
+	}
+
 	/*int objectID;
 	objectID = RetrieveObjectID(point.x, point.y);	
 		
@@ -313,123 +389,105 @@ void COpenGLControl::oglInitialize(void)
 	// Send draw request
 	OnDraw(NULL);
 	// set settings
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
 	glShadeModel(GL_FLAT);
 	//glEnable(GL_CULL_FACE);
 
 	// Set Vertex Array
 	oglRecalculate(); // считываем вершины
-
-	//Цвет
-	for(unsigned i=0; i<8; i++)
-	{
-		cubeColorArray[i][0] = 1.0f;
-		cubeColorArray[i][1] = 1.0f;
-		cubeColorArray[i][2] = 1.0f;
-	}
-	//Грани
-	cubeIndexArray[0][0] = 0;
-	cubeIndexArray[0][1] = 3;
-	cubeIndexArray[0][2] = 2;
-	cubeIndexArray[0][3] = 1;
- 
-	cubeIndexArray[1][0] = 0;
-	cubeIndexArray[1][1] = 1;
-	cubeIndexArray[1][2] = 5;
-	cubeIndexArray[1][3] = 4;
- 
-	cubeIndexArray[2][0] = 7;
-	cubeIndexArray[2][1] = 4;
-	cubeIndexArray[2][2] = 5;
-	cubeIndexArray[2][3] = 6;
- 
-	cubeIndexArray[3][0] = 3;
-	cubeIndexArray[3][1] = 7;
-	cubeIndexArray[3][2] = 6;
-	cubeIndexArray[3][3] = 2;
- 
-	cubeIndexArray[4][0] = 1;
-	cubeIndexArray[4][1] = 2;
-	cubeIndexArray[4][2] = 6;
-	cubeIndexArray[4][3] = 5;
- 
-	cubeIndexArray[5][0] = 0;
-	cubeIndexArray[5][1] = 4;
-	cubeIndexArray[5][2] = 7;
-	cubeIndexArray[5][3] = 3;
 }
 
 void COpenGLControl::oglDrawScene(void)
 {
-	//glInitNames();
-	//glPushName(0);
-
-	//glLoadName(OBJECT_CUBE); // Заготовка
+	// Необохдимые настройки
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	// Оси
+	glVertexPointer(3, GL_FLOAT, 0, axisVertex);
+	glColorPointer(3, GL_FLOAT, 0, axisColor);
+	glDrawElements(GL_LINES, 6, GL_UNSIGNED_BYTE, axisIndex);
+	// Заготовка
 	glVertexPointer(3, GL_FLOAT, 0, cubeVertexArray);
 	glColorPointer(3, GL_FLOAT, 0, cubeColorArray);
 	glDrawElements(GL_QUADS, 24, GL_UNSIGNED_BYTE, cubeIndexArray);
-	
-	/*glLoadName(OBJECT_SPHERE_1);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		glColor3d(0,1,0);
+	// Луч
+	if(p1 != 0 && p2 !=0 && m_bRayIsVisible) //Попытка отрисовать луч
+	{
+		glColor3d(1,1,0);
+		glBegin(GL_LINES);
+			glVertex3f(p1.x,p1.y,p1.z);
+			glVertex3f(p2.x,p2.y,p2.z);
+		glEnd();
+	}
+	// Сферы
+	for(unsigned i=0; i<SELECTING_OBJECT_COUNT; i++)
+	{
+		glColor3ub(0,100,200);
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
-		glTranslatef(m_start_x,m_start_y,m_start_z);
-		gluSphere(m_Obj[0], 0.1f*m_scale, 10, 10);
+		glTranslatef(obj[i].center.x,obj[i].center.y,obj[i].center.z);
+			auxSolidSphere(0.1);
 		glPopMatrix();
-	glLoadName(OBJECT_SPHERE_2);
-		glColor3d(0,1,0);
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glTranslatef(m_start_x,m_start_y,m_start_z + m_height);
-			gluSphere(m_Obj[1], 0.1f*m_scale, 10, 10);
-		glPopMatrix();
-	glLoadName(OBJECT_SPHERE_3);
-		glColor3d(0,1,0);
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glTranslatef(m_start_x,m_start_y + m_width,m_start_z + m_height);
-			gluSphere(m_Obj[1], 0.1f*m_scale, 10, 10);
-		glPopMatrix();
-	glLoadName(OBJECT_SPHERE_4);
-		glColor3d(0,1,0);
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glTranslatef(m_start_x,m_start_y + m_width,m_start_z);
-			gluSphere(m_Obj[1], 0.1f*m_scale, 10, 10);
-		glPopMatrix();
-	glLoadName(OBJECT_SPHERE_5);
-		glColor3d(0,1,0);
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glTranslatef(m_start_x + m_length,m_start_y,m_start_z);
-		gluSphere(m_Obj[0], 0.1f*m_scale, 10, 10);
-		glPopMatrix();
-	glLoadName(OBJECT_SPHERE_6);
-		glColor3d(0,1,0);
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glTranslatef(m_start_x + m_length,m_start_y,m_start_z + m_height);
-			gluSphere(m_Obj[1], 0.1f*m_scale, 10, 10);
-		glPopMatrix();
-	glLoadName(OBJECT_SPHERE_7);
-		glColor3d(0,1,0);
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glTranslatef(m_start_x + m_length,m_start_y + m_width,m_start_z + m_height);
-			gluSphere(m_Obj[1], 0.1f*m_scale, 10, 10);
-		glPopMatrix();
-	glLoadName(OBJECT_SPHERE_8);
-		glColor3d(0,1,0);
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glTranslatef(m_start_x + m_length,m_start_y + m_width,m_start_z);
-			gluSphere(m_Obj[1], 0.1f*m_scale, 10, 10);
-		glPopMatrix();*/
+	}	
 
-	
+	//// Sphere 1
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	//glColor3ub(0,150,0);
+	//glMatrixMode(GL_MODELVIEW);
+	//glPushMatrix();
+	//glTranslatef(m_start_x,m_start_y,m_start_z);
+	//gluSphere(m_Obj[0], 0.1f*m_scale, 10, 10);
+	//glPopMatrix();
+	//// Sphere 2
+	//glColor3ub(0,150,0);
+	//glMatrixMode(GL_MODELVIEW);
+	//glPushMatrix();
+	//glTranslatef(m_start_x,m_start_y,m_start_z + m_height);
+	//	gluSphere(m_Obj[1], 0.1f*m_scale, 10, 10);
+	//glPopMatrix();
+	//// Sphere 3
+	//glColor3ub(0,150,0);
+	//glMatrixMode(GL_MODELVIEW);
+	//glPushMatrix();
+	//glTranslatef(m_start_x,m_start_y + m_width,m_start_z + m_height);
+	//	gluSphere(m_Obj[2], 0.1f*m_scale, 10, 10);
+	//glPopMatrix();
+	//// Sphere 4
+	//glColor3ub(0,150,0);
+	//glMatrixMode(GL_MODELVIEW);
+	//glPushMatrix();
+	//glTranslatef(m_start_x,m_start_y + m_width,m_start_z);
+	//	gluSphere(m_Obj[3], 0.1f*m_scale, 10, 10);
+	//glPopMatrix();
+	//// Sphere 5
+	//glColor3ub(0,150,0);
+	//glMatrixMode(GL_MODELVIEW);
+	//glPushMatrix();
+	//glTranslatef(m_start_x + m_length,m_start_y,m_start_z);
+	//gluSphere(m_Obj[4], 0.1f*m_scale, 10, 10);
+	//glPopMatrix();
+	//// Sphere 6
+	//glColor3ub(0,150,0);
+	//glMatrixMode(GL_MODELVIEW);
+	//glPushMatrix();
+	//glTranslatef(m_start_x + m_length,m_start_y,m_start_z + m_height);
+	//	gluSphere(m_Obj[5], 0.1f*m_scale, 10, 10);
+	//glPopMatrix();
+	//// Sphere 7
+	//glColor3ub(0,150,0);
+	//glMatrixMode(GL_MODELVIEW);
+	//glPushMatrix();
+	//glTranslatef(m_start_x + m_length,m_start_y + m_width,m_start_z + m_height);
+	//	gluSphere(m_Obj[6], 0.1f*m_scale, 10, 10);
+	//glPopMatrix();
+	//// Sphere 8
+	//glColor3ub(0,150,0);
+	//glMatrixMode(GL_MODELVIEW);
+	//glPushMatrix();
+	//glTranslatef(m_start_x + m_length,m_start_y + m_width,m_start_z);
+	//	gluSphere(m_Obj[7], 0.1f*m_scale, 10, 10);
+	//glPopMatrix();
+
 	//glBegin(GL_QUADS);
 	//		// Front Side
 	//		glVertex3f( m_start_x,  m_start_y, m_start_z);
@@ -587,45 +645,36 @@ void COpenGLControl::oglRecalculate(void)
 	cubeVertexArray[7][0] = m_start_x + m_length;
 	cubeVertexArray[7][1] = m_start_y + m_width;
 	cubeVertexArray[7][2] = m_start_z;
+	for(unsigned i=0; i<SELECTING_OBJECT_COUNT; i++)
+	{
+		obj[i].center.x = cubeVertexArray[i][0];
+		obj[i].center.y = cubeVertexArray[i][1];
+		obj[i].center.z = cubeVertexArray[i][2];
+	}
 }
 
-int COpenGLControl::RetrieveObjectID(int x, int y)
+int COpenGLControl::RetrieveObjectID(int x, int y, myvector &p1, myvector &p2)
 {
 	/*
-		Получает ID объекта сцены по координатам мыши
+		Получает объект сцены по координатам мыши
 	*/
-	int objectsFound = 0; //Количество объектов
-	int vewportCoords[4] = {0}; //Координаты экрана
-
-	unsigned int selectBuffer[SELECTING_BUFFER] = {0}; //для 1 объекта 4 слота
-	glSelectBuffer(SELECTING_BUFFER, selectBuffer); //Регистрируем буфер для хранения объектов
-	glGetIntegerv(GL_VIEWPORT, vewportCoords); //Получаем текущие координаты экрана
-	glMatrixMode(GL_PROJECTION); //Переходим в матрицу проекции
-	glPushMatrix(); //Переход в новые экранные координаты
-		glRenderMode(GL_SELECT);
-		glLoadIdentity(); //Сброс матрицы проекции
-		gluPickMatrix(x, vewportCoords[3] - y, 2, 2, vewportCoords);
-		gluPerspective(35.0f, (float)x / (float)y, 0.01f, 2000.0f); //Устанавливаем перспективу
-		glMatrixMode(GL_MODELVIEW);
-			oglDrawScene(); //Рисуем сцену
-			objectsFound = glRenderMode(GL_RENDER); //Получаем число объектов
-		glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	if(objectsFound > 0) //Если мы попали в объект
-	{
-		//Если объектов много, берём ближний
-		unsigned int lowestDepth = selectBuffer[1];
-		int selectedObject = selectBuffer[3];
-		for(int i = 1; i<objectsFound; i++)
-		{
-			if(selectBuffer[(i*4)+1] < lowestDepth)
-			{
-				lowestDepth = selectBuffer[(i*4)+1];
-				selectedObject = selectBuffer[(i*4)+3];
-			}
-		}
-		return selectedObject; //Возвращаем ID ближайшего объекта
-	}
-	return 0; //Не попали ни в один объект, возвращаем 0
+	double model[16];
+	double project[16];
+	double wx,wy,wz;
+	int viewport[4];
+	glGetDoublev(GL_MODELVIEW_MATRIX, model);
+	glGetDoublev(GL_PROJECTION_MATRIX, project);
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	//Получаем ближную точку вектора
+	gluUnProject(x, viewport[3] - y, -1.0
+		, model, project, viewport
+		, &wx, &wy, &wz);
+	p1.Set(wx, wy, wz);
+	//Получаем дальную точку вектора
+	gluUnProject(x, viewport[3] - y, 1.0
+		, model, project, viewport
+		, &wx, &wy, &wz);
+	p2.Set(wx, wy, wz);
+	
+	return 0;
 }
