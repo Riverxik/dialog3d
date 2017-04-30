@@ -8,6 +8,7 @@
 #define NUMBER_OF_VERTEX 8
 #define SELECTING_OBJECT_COUNT 8
 #define SELECTING_BUFFER 4 * SELECTING_OBJECT_COUNT
+#define NUMBER_OF_INTERSECTION 3
 
 struct myvector
 {
@@ -21,12 +22,20 @@ struct myvector
 	bool operator!=(const int _num) const
 	{return !((*this).x == _num && (*this).y == _num && (*this).z == _num);}
 	void Set(float _x, float _y, float _z){x=_x; y=_y; z=_z;};
-};
-
-struct myobject
-{
-	myvector center; //Центральная точка
-	myobject(){center.Set(0,0,0);};
+	/*const myvector operator + (const myvector &v1)
+	{
+		this->x + v1.x;
+		this->y + v1.y;
+		this->z + v1.z;
+		return *this;
+	}
+	const myvector operator - (const myvector &v1)
+	{
+		this->x - v1.x;
+		this->y - v1.y;
+		this->z - v1.z;
+		return *this;
+	}*/
 };
 
 class COpenGLControl : public CWnd
@@ -46,6 +55,7 @@ class COpenGLControl : public CWnd
 		float	 m_fRotY;
 		bool	 m_bIsMaximized;
 		bool	 m_bRayIsVisible;
+		int		 m_iNumSelectedSphere;
 
 		// Draw information
 		float	 m_start_x;		// Ближайшая точка по оси X
@@ -66,7 +76,7 @@ class COpenGLControl : public CWnd
 		GLubyte axisIndex[3][2];		// Массив точек линий
 
 		myvector p1, p2;				// Луч определяющий пересечение с объектами
-		myobject obj[SELECTING_OBJECT_COUNT];// 8 сфер для выбора точки начала координат
+		myvector obj[SELECTING_OBJECT_COUNT];// 8 сфер для выбора точки начала координат
 	private:
 		/*******************/
 		/* Private Members */

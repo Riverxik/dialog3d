@@ -9,7 +9,8 @@ COpenGLControl::COpenGLControl(void)
 	m_fRotX = 0.0f;		// Rotation on model in camera view
 	m_fRotY	= 0.0f;		// Rotation on model in camera view
 	m_bIsMaximized = false;
-	m_bRayIsVisible = true;
+	m_bRayIsVisible = false; // False mean don't draw the ray
+	m_iNumSelectedSphere = -1;
 
 	m_start_x = 0.0f; // x coord of start point
 	m_start_y = 0.0f; // y coord of start point
@@ -288,8 +289,7 @@ void COpenGLControl::OnLButtonUp(UINT nFlags, CPoint point)
 	//Получаем координаты луча
 	if(nFlags && MK_CONTROL)
 	{
-		RetrieveObjectID(point.x, point.y, p1, p2); // Задали луч
-		
+		m_iNumSelectedSphere = RetrieveObjectID(point.x, point.y, p1, p2); // Задали луч
 	}
 
 	/*int objectID;
@@ -418,14 +418,24 @@ void COpenGLControl::oglDrawScene(void)
 			glVertex3f(p1.x,p1.y,p1.z);
 			glVertex3f(p2.x,p2.y,p2.z);
 		glEnd();
+		//Отображение передней части луча
+		/*glColor3d(1,0,0);
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glTranslatef(p1.x,p1.y,p1.z);
+			auxSolidSphere(0.1);
+		glPopMatrix();*/
 	}
 	// Сферы
 	for(unsigned i=0; i<SELECTING_OBJECT_COUNT; i++)
 	{
+		if(i == m_iNumSelectedSphere)
+			glColor3ub(100,0,0);
+		else
 		glColor3ub(0,100,200);
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
-		glTranslatef(obj[i].center.x,obj[i].center.y,obj[i].center.z);
+		glTranslatef(obj[i].x,obj[i].y,obj[i].z);
 			auxSolidSphere(0.1);
 		glPopMatrix();
 	}	
@@ -602,9 +612,9 @@ void COpenGLControl::oglFillIn(void)
 	objX = fabs(maxX - minX);
 	objY = fabs(maxY - minY);
 	if(objX > objY)
-		m_fZoom = viewport[2] / objX;
+		m_fZoom = (float)(viewport[2] / objX);
 	else
-		m_fZoom = viewport[3] / objY;
+		m_fZoom = (float)(viewport[3] / objY);
 	
 	OnMouseMove(NULL, NULL);
 }
@@ -645,11 +655,12 @@ void COpenGLControl::oglRecalculate(void)
 	cubeVertexArray[7][0] = m_start_x + m_length;
 	cubeVertexArray[7][1] = m_start_y + m_width;
 	cubeVertexArray[7][2] = m_start_z;
+	// Переписать инициализацию сфер
 	for(unsigned i=0; i<SELECTING_OBJECT_COUNT; i++)
 	{
-		obj[i].center.x = cubeVertexArray[i][0];
-		obj[i].center.y = cubeVertexArray[i][1];
-		obj[i].center.z = cubeVertexArray[i][2];
+		obj[i].x = cubeVertexArray[i][0];
+		obj[i].y = cubeVertexArray[i][1];
+		obj[i].z = cubeVertexArray[i][2];
 	}
 }
 
@@ -669,12 +680,101 @@ int COpenGLControl::RetrieveObjectID(int x, int y, myvector &p1, myvector &p2)
 	gluUnProject(x, viewport[3] - y, -1.0
 		, model, project, viewport
 		, &wx, &wy, &wz);
-	p1.Set(wx, wy, wz);
+	p1.Set((float)wx, (float)wy, (float)wz);
 	//Получаем дальную точку вектора
 	gluUnProject(x, viewport[3] - y, 1.0
 		, model, project, viewport
 		, &wx, &wy, &wz);
-	p2.Set(wx, wy, wz);
+	p2.Set((float)wx, (float)wy, (float)wz);
 	
-	return 0;
+	//Поиск точек пересечений
+	float c1, c2, c3,
+		  p, q, k, R,
+		  x1, y1, z1,
+		  n1, n2, n3; 
+	float D;
+	float t1, t2;
+	myvector res1[SELECTING_OBJECT_COUNT]
+	, res2[SELECTING_OBJECT_COUNT]; // Искомые точки пересечения луча и сфер
+	// Коэф. луч
+	c1 = p2.x - p1.x;
+	c2 = p2.y - p1.y;
+	c3 = p2.z - p1.z;
+	x1 = p1.x;
+	y1 = p1.y;
+	z1 = p1.z;
+	// Вычисляем все точки пересечения луча со всеми сферами на сцене
+	// res[N] - координаты пересечения со сферой [N]
+	//							где N - номер сферы;
+	for(unsigned i=0; i<SELECTING_OBJECT_COUNT; i++)
+	{
+		p = obj[i].x;
+		q = obj[i].y;
+		k = obj[i].z;
+		R = 0.1f;
+		// Формулы
+		n1 = c1*c1 + c2*c2 + c3*c3;
+		n2 = -2 * (c1 * (x1 - p) + c2 * (y1 - q) + c3 * (z1 - k));
+		n3 = (x1 - p) * (x1 - p) + (y1 - q) * (y1 - q) + (z1 - k) * (z1 - k) - (R * R);
+		D = n2*n2 - 4 * n1 * n3;
+		if(D > 0)
+		{
+			// Луч прошел через сферу
+			//AfxMessageBox(_T("D > 0"));
+			t1 = (- n2 + sqrt(D)) / 2 * n1; 
+			t2 = (- n2 - sqrt(D)) / 2 * n1;
+			res1[i].x = t1 * c1 - x1;
+			res1[i].y = t1 * c2 - y1;
+			res1[i].z = t1 * c3 - z1;
+			res2[i].x = t2 * c1 - x1;
+			res2[i].y = t2 * c2 - y1;
+			res2[i].z = t2 * c3 - z1;
+		}
+		else 
+		if(D == 0)
+		{
+			// Луч прошес по касательной к сфере
+			//AfxMessageBox(_T("D = 0"));
+			t1 = (- n2 + sqrt(D)) / 2 * n1;
+			res1[i].x = t1 * c1 - x1;
+			res1[i].y = t1 * c2 - y1;
+			res1[i].z = t1 * c3 - z1;
+		}
+		else
+		{
+			//AfxMessageBox(_T("D < 0"));
+		}
+	}
+	// Выбираем наиболее ближайший к нам объект
+	float ResMassiv[NUMBER_OF_INTERSECTION][2];
+	int index_selected_sphere = 0;
+	float minvek;
+	minvek = sqrt((p2.x-p1.x)*(p2.x-p1.x) + (p2.y-p1.y) * (p2.y-p1.y) + (p2.z-p1.z) * (p2.z-p1.z));
+	float curvek = minvek;
+	int count = 0; // Количество сфер через которые прошел луч
+ 	for(unsigned i=0; i<SELECTING_OBJECT_COUNT; i++)
+	{
+		curvek = sqrt((res1[i].x-p1.x)*(res1[i].x-p1.x) + (res1[i].y-p1.y) * (res1[i].y-p1.y) + (res1[i].z-p1.z) * (res1[i].z-p1.z));	
+		if(curvek > minvek)
+		{
+			ResMassiv[count][0] = curvek;
+			ResMassiv[count][1] = (float)i;
+			if(count < SELECTING_OBJECT_COUNT)
+			count++;
+		}
+	}
+	float min_length = ResMassiv[0][0];
+	index_selected_sphere = (int)ResMassiv[0][1];
+	for(unsigned i=1; i<NUMBER_OF_INTERSECTION; i++)
+	{
+		if(ResMassiv[i][0] > 0)
+		{
+			if(ResMassiv[i][0] < min_length)
+			{
+				min_length = ResMassiv[i][0];
+				index_selected_sphere = (int)ResMassiv[i][1];
+			}
+		}
+	}
+	return index_selected_sphere;
 }
